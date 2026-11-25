@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tótem de Turnos - Clínica Universitaria</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Centro Médico Universitario</h1>
+    <nav class="nav-links">
+      <a href="totem.html" class="active">1. Tótem</a>
+      <a href="sala.html">2. Pantalla Sala</a>
+      <a href="recepcion.html">3. Recepción</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="errorBox" class="alert-error"></div>
+
+    <div class="totem-header">
+      <h2>¿Qué servicio necesita hoy?</h2>
+      <p>Toque una opción para obtener su turno de atención</p>
+    </div>
+
+    <section id="serviciosGrid" class="servicios-grid">
+      <p>Cargando servicios disponibles...</p>
+    </section>
+  </main>
+
+  <!-- Modal de comprobante -->
+  <div id="ticketModal" class="modal-backdrop">
+    <div class="ticket-card">
+      <p style="font-size: 1.25rem; font-weight: 700; color: var(--muted);">SU TURNO ASIGNADO ES</p>
+      <div id="modalCodigo" class="ticket-codigo">M-000</div>
+      <p id="modalEspecialidad" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.8rem;"></p>
+      <p id="modalEspera" style="font-size: 1.2rem; color: var(--muted); margin-bottom: 1.8rem;"></p>
+      <button type="button" class="btn-primary" onclick="cerrarModal()">Aceptar y finalizar</button>
+    </div>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script>
+    const grid = document.getElementById('serviciosGrid');
+    const errorBox = document.getElementById('errorBox');
+
+    function mostrarError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = 'block';
+    }
+
+    async function cargarServicios() {
+      try {
+        errorBox.style.display = 'none';
+        const data = await obtenerEstadoTurnos();
+        grid.innerHTML = '';
+
+        data.especialidades.forEach(esp => {
+          const cant = parseInt(esp.en_espera, 10);
+          const textoEspera = cant === 0
+            ? 'Sin espera'
+            : cant === 1 ? '1 persona en espera' : `${cant} personas en espera`;
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn-servicio';
+          btn.innerHTML = `
+            <span class="titulo">${esp.nombre}</span>
+            <span class="badge-espera">${textoEspera}</span>
+          `;
+          btn.onclick = () => solicitarTurno(esp.id);
+          grid.appendChild(btn);
+        });
+      } catch (err) {
+        mostrarError(err.message);
+      }
+    }
+
+    async function solicitarTurno(especialidadId) {
+      try {
+        errorBox.style.display = 'none';
+        const res = await crearTurno(especialidadId);
+        const t = res.turno;
+
+        document.getElementById('modalCodigo').textContent = t.codigo;
+        document.getElementById('modalEspecialidad').textContent = t.especialidad;
+        document.getElementById('modalEspera').textContent =
+          t.turnos_delante === 0
+            ? 'Es su turno de inmediato. Esté atento a la pantalla.'
+            : `Faltan ${t.turnos_delante} turnos antes que el suyo (Tiempo estimado: ${t.tiempo_estimado_min} min).`;
+
+        document.getElementById('ticketModal').classList.add('open');
+        cargarServicios();
+      } catch (err) {
+        mostrarError(err.message);
+      }
+    }
+
+    function cerrarModal() {
+      document.getElementById('ticketModal').classList.remove('open');
+    }
+
+    cargarServicios();
+    setInterval(cargarServicios, 5000);
+  </script>
+</body>
+</html>

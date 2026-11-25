@@ -1,0 +1,326 @@
+:root {
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --primary: #0F4C81;
+  --primary-dark: #0A355C;
+  --accent: #0D9488;
+  --accent-hover: #0F766E;
+  --danger: #DC2626;
+  --text: #0F172A;
+  --muted: #475569;
+  --border: #CBD5E1;
+  --highlight: #FACC15;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Barra superior de navegación rápida */
+.topbar {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  padding: 0.9rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.topbar h1 {
+  font-size: 1.35rem;
+  color: var(--primary);
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+.nav-links a.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+}
+
+.container {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  flex: 1;
+}
+
+/* TÓTEM (Accesible para adultos mayores y estudiantes) */
+.totem-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.totem-header h2 {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.totem-header p {
+  font-size: 1.2rem;
+  color: var(--muted);
+}
+
+.servicios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.btn-servicio {
+  background: var(--surface);
+  border: 3px solid var(--primary);
+  border-radius: 16px;
+  padding: 2.2rem 1.5rem;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.15s, background-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.btn-servicio:hover {
+  background: #EFF6FF;
+  transform: translateY(-3px);
+}
+
+.btn-servicio .titulo {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.badge-espera {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+}
+
+/* Modal de Ticket */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.ticket-card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  border-top: 10px solid var(--accent);
+}
+
+.ticket-codigo {
+  font-size: 4.5rem;
+  font-weight: 900;
+  color: var(--primary);
+  margin: 0.8rem 0;
+  letter-spacing: 2px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 1.75rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  padding: 0.85rem 1.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* PANTALLA DE SALA (TV 1920x1080) */
+.sala-layout {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  flex: 1;
+}
+
+.sala-actual {
+  background: var(--primary);
+  color: #FFFFFF;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.sala-actual .etiqueta {
+  font-size: 1.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.sala-actual .codigo-gigante {
+  font-size: 7.5rem;
+  font-weight: 900;
+  color: var(--highlight);
+  line-height: 1.1;
+  margin: 1rem 0;
+}
+
+.sala-actual .consultorio-destino {
+  background: #FFFFFF;
+  color: var(--primary-dark);
+  font-size: 2.3rem;
+  font-weight: 800;
+  padding: 0.9rem 2.2rem;
+  border-radius: 14px;
+  margin-bottom: 1rem;
+}
+
+.sala-proximos {
+  background: var(--surface);
+  padding: 2.5rem;
+  border-left: 3px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sala-proximos h2 {
+  font-size: 1.8rem;
+  color: var(--primary);
+  margin-bottom: 1.2rem;
+}
+
+.cola-item {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* PANEL DE RECEPCIÓN */
+.recepcion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 2rem;
+}
+
+.panel-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 1.75rem;
+}
+
+.select-consultorio {
+  padding: 0.6rem 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 2px solid var(--primary);
+}
+
+.atencion-box {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: #F1F5F9;
+  border-radius: 12px;
+  text-align: center;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th, td {
+  padding: 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.05rem;
+}
+
+th {
+  background: #F1F5F9;
+  color: var(--primary);
+}
+
+.alert-error {
+  background: #FEE2E2;
+  color: #991B1B;
+  padding: 0.9rem 1.2rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  display: none;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .sala-layout, .recepcion-grid {
+    grid-template-columns: 1fr;
+  }
+}
