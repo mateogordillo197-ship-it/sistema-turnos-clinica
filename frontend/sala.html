@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pantalla de Espera - Clínica Universitaria</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Sala de Espera — Centro Médico Universitario</h1>
+    <nav class="nav-links">
+      <a href="totem.html">1. Tótem</a>
+      <a href="sala.html" class="active">2. Pantalla Sala</a>
+      <a href="recepcion.html">3. Recepción</a>
+    </nav>
+  </header>
+
+  <main class="sala-layout">
+    <section class="sala-actual">
+      <span class="etiqueta">TURNO ACTUAL</span>
+      <div id="turnoActualCodigo" class="codigo-gigante">---</div>
+      <div id="turnoActualConsultorio" class="consultorio-destino">Esperando llamado</div>
+      <p id="turnoActualEspecialidad" style="font-size: 1.6rem; opacity: 0.95;"></p>
+      <div id="otrosAtendiendo" style="margin-top: 2rem; font-size: 1.2rem; opacity: 0.9;"></div>
+    </section>
+
+    <aside class="sala-proximos">
+      <div>
+        <h2>PRÓXIMOS TURNOS</h2>
+        <div id="listaProximos">
+          <p>Cargando cola...</p>
+        </div>
+      </div>
+      <p style="font-size: 1.15rem; color: var(--muted); font-weight: 600; border-top: 2px solid var(--border); padding-top: 1rem;">
+        Por favor, manténgase atento a su código en pantalla.
+      </p>
+    </aside>
+  </main>
+
+  <script src="assets/js/api.js"></script>
+  <script>
+    async function actualizarSala() {
+      try {
+        const data = await obtenerEstadoTurnos();
+
+        if (data.en_atencion.length > 0) {
+          const principal = data.en_atencion[0];
+          document.getElementById('turnoActualCodigo').textContent = principal.codigo;
+          document.getElementById('turnoActualConsultorio').textContent = `PASE AL ${principal.consultorio.toUpperCase()}`;
+          document.getElementById('turnoActualEspecialidad').textContent = principal.especialidad;
+
+          if (data.en_atencion.length > 1) {
+            const secundarios = data.en_atencion.slice(1)
+              .map(t => `${t.codigo} → ${t.consultorio}`)
+              .join('  |  ');
+            document.getElementById('otrosAtendiendo').textContent = `También en atención: ${secundarios}`;
+          } else {
+            document.getElementById('otrosAtendiendo').textContent = '';
+          }
+        } else {
+          document.getElementById('turnoActualCodigo').textContent = '---';
+          document.getElementById('turnoActualConsultorio').textContent = 'Sin turnos en atención';
+          document.getElementById('turnoActualEspecialidad').textContent = '';
+          document.getElementById('otrosAtendiendo').textContent = '';
+        }
+
+        const lista = document.getElementById('listaProximos');
+        const proximos = data.en_espera.slice(0, 4);
+
+        if (proximos.length === 0) {
+          lista.innerHTML = '<p style="font-size:1.2rem; color:var(--muted);">No hay pacientes en espera.</p>';
+        } else {
+          lista.innerHTML = proximos.map(t => `
+            <div class="cola-item">
+              <span style="color: var(--primary); font-size: 1.65rem;">${t.codigo}</span>
+              <span>${t.especialidad}</span>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    actualizarSala();
+    setInterval(actualizarSala, 3000);
+  </script>
+</body>
+</html>

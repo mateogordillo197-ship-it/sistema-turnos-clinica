@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Recepción - Clínica Universitaria</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Panel de Recepción</h1>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <select id="selectConsultorio" class="select-consultorio" onchange="cargarPanel()">
+        <option value="2" data-nombre="Consultorio 2" data-esp="1" data-recep="2">Consultorio 2 — Medicina General</option>
+        <option value="1" data-nombre="Consultorio 1" data-esp="1" data-recep="1">Consultorio 1 — Medicina General</option>
+        <option value="3" data-nombre="Consultorio 3 - Odontología" data-esp="2" data-recep="1">Consultorio 3 — Odontología</option>
+        <option value="4" data-nombre="Tópico de Enfermería" data-esp="3" data-recep="2">Tópico — Enfermería</option>
+      </select>
+      <nav class="nav-links">
+        <a href="totem.html">1. Tótem</a>
+        <a href="sala.html">2. Pantalla Sala</a>
+        <a href="recepcion.html" class="active">3. Recepción</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="errorBox" class="alert-error"></div>
+
+    <div class="recepcion-grid">
+      <section class="panel-card">
+        <button id="btnLlamar" type="button" class="btn-primary" style="font-size: 1.4rem; padding: 1.3rem;" onclick="accionLlamarSiguiente()">
+          LLAMAR SIGUIENTE TURNO
+        </button>
+
+        <div id="bloqueAtencion" class="atencion-box">
+          <p style="font-weight: 700; color: var(--muted);">EN ATENCIÓN ACTUAL</p>
+          <div id="atencionCodigo" style="font-size: 3.5rem; font-weight: 900; color: var(--primary); margin: 0.5rem 0;">---</div>
+          <p id="atencionDetalle" style="margin-bottom: 1.2rem; color: var(--muted);">Ningún paciente en este consultorio</p>
+          <button id="btnFinalizar" type="button" class="btn-danger" style="display: none; width: 100%;" onclick="accionFinalizar()">
+            Finalizar consulta
+          </button>
+        </div>
+      </section>
+
+      <section class="panel-card">
+        <h2 style="color: var(--primary);">Fila de espera de esta especialidad</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Turno</th>
+              <th>Especialidad</th>
+              <th>Espera</th>
+            </tr>
+          </thead>
+          <tbody id="tablaCola">
+            <tr><td colspan="3">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <script src="assets/js/api.js"></script>
+  <script>
+    let turnoEnCursoId = null;
+
+    function getConsultorioSeleccionado() {
+      const sel = document.getElementById('selectConsultorio');
+      const opt = sel.options[sel.selectedIndex];
+      return {
+        id: parseInt(sel.value, 10),
+        nombre: opt.getAttribute('data-nombre'),
+        especialidadId: parseInt(opt.getAttribute('data-esp'), 10),
+        recepcionistaId: parseInt(opt.getAttribute('data-recep'), 10)
+      };
+    }
+
+    function mostrarError(msg) {
+      const box = document.getElementById('errorBox');
+      box.textContent = msg;
+      box.style.display = msg ? 'block' : 'none';
+    }
+
+    async function cargarPanel() {
+      try {
+        mostrarError('');
+        const cons = getConsultorioSeleccionado();
+        const data = await obtenerEstadoTurnos();
+
+        // Buscar si este consultorio tiene un turno activo
+        const activo = data.en_atencion.find(t => t.consultorio === cons.nombre);
+        const btnFin = document.getElementById('btnFinalizar');
+
+        if (activo) {
+          turnoEnCursoId = activo.id;
+          document.getElementById('atencionCodigo').textContent = activo.codigo;
+          document.getElementById('atencionDetalle').textContent = `Llamado a las ${activo.llamado_en}`;
+          btnFin.style.display = 'inline-block';
+        } else {
+          turnoEnCursoId = null;
+          document.getElementById('atencionCodigo').textContent = '---';
+          document.getElementById('atencionDetalle').textContent = 'Consultorio disponible';
+          btnFin.style.display = 'none';
+        }
+
+        // Filtrar cola por la especialidad del consultorio
+        const colaFiltrada = data.en_espera.filter(t => parseInt(t.especialidad_id, 10) === cons.especialidadId);
+        const tbody = document.getElementById('tablaCola');
+
+        if (colaFiltrada.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3">No hay pacientes en espera para este servicio.</td></tr>';
+        } else {
+          tbody.innerHTML = colaFiltrada.map(t => `
+            <tr>
+              <td><strong>${t.codigo}</strong></td>
+              <td>${t.especialidad}</td>
+              <td>${t.minutos_espera} min</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        mostrarError(err.message);
+      }
+    }
+
+    async function accionLlamarSiguiente() {
+      try {
+        mostrarError('');
+        const cons = getConsultorioSeleccionado();
+        const res = await llamarSiguiente(cons.id, cons.recepcionistaId);
+        if (!res.turno) {
+          mostrarError(res.mensaje || 'No hay pacientes en espera.');
+        }
+        cargarPanel();
+      } catch (err) {
+        mostrarError(err.message);
+      }
+    }
+
+    async function accionFinalizar() {
+      if (!turnoEnCursoId) return;
+      try {
+        mostrarError('');
+        await finalizarTurno(turnoEnCursoId);
+        cargarPanel();
+      } catch (err) {
+        mostrarError(err.message);
+      }
+    }
+
+    cargarPanel();
+    setInterval(cargarPanel, 4000);
+  </script>
+</body>
+</html>
