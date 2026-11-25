@@ -19,9 +19,10 @@ function responder($status, $payload) {
 }
 
 $metodo = $_SERVER['REQUEST_METHOD'];
+$enTransaccion = false;
 
 try {
-    // 1. OBTENER ESTADO DE SALA, CONTEO PARA TÓTEM Y FILA DE RECEPCIÓN
+    // 1. CONSULTA OPTIMIZADA PARA SALA, TÓTEM Y RECEPCIÓN (usa índices compuestos)
     if ($metodo === 'GET') {
         $stmtActuales = $pdo->query("
             SELECT t.id, t.codigo, e.nombre AS especialidad, c.nombre AS consultorio, t.llamado_en
@@ -62,7 +63,7 @@ try {
         ));
     }
 
-    // 2. ACCIONES: CREAR TURNO, LLAMAR SIGUIENTE, FINALIZAR
+    // 2. OPERACIONES TRANSACCIONALES CON BLOQUEO DE FILA
     if ($metodo === 'POST') {
         $raw = file_get_contents('php://input');
         $input = json_decode($raw, true);
@@ -72,24 +73,33 @@ try {
 
         $accion = isset($input['accion']) ? $input['accion'] : '';
 
-        // A) TÓTEM: Emitir nuevo turno
+        // A) TÓTEM: Generar nuevo turno sin colisión de correlativos
         if ($accion === 'crear') {
             $especialidadId = isset($input['especialidad_id']) ? (int)$input['especialidad_id'] : 0;
             if ($especialidadId <= 0) {
                 responder(400, array('ok' => false, 'error' => 'Especialidad inválida.'));
             }
 
-            $stmtEsp = $pdo->prepare("SELECT prefijo, nombre FROM especialidades WHERE id = ? AND activo = 1");
+            $pdo->beginTransaction();
+            $enTransaccion = true;
+
+            // Bloquea la fila de la especialidad mientras calcula el siguiente correlativo del día
+            $stmtEsp = $pdo->prepare("SELECT prefijo, nombre FROM especialidades WHERE id = ? AND activo = 1 FOR UPDATE");
             $stmtEsp->execute(array($especialidadId));
             $esp = $stmtEsp->fetch();
 
             if (!$esp) {
+                $pdo->rollBack();
+                $enTransaccion = false;
                 responder(404, array('ok' => false, 'error' => 'Especialidad no encontrada.'));
             }
 
+            // Rango de fecha indexable (evita DATE(creado_en) = CURDATE())
             $stmtSeq = $pdo->prepare("
                 SELECT COUNT(*) AS total FROM turnos
-                WHERE especialidad_id = ? AND DATE(creado_en) = CURDATE()
+                WHERE especialidad_id = ?
+                  AND creado_en >= CURDATE()
+                  AND creado_en < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
             ");
             $stmtSeq->execute(array($especialidadId));
             $rowSeq = $stmtSeq->fetch();
@@ -98,7 +108,7 @@ try {
 
             $stmtDelante = $pdo->prepare("
                 SELECT COUNT(*) AS delante FROM turnos
-                WHERE especialidad_id = ? AND estado = 'espera'
+                WHERE estado = 'espera' AND especialidad_id = ?
             ");
             $stmtDelante->execute(array($especialidadId));
             $rowDelante = $stmtDelante->fetch();
@@ -108,11 +118,15 @@ try {
                 INSERT INTO turnos (codigo, especialidad_id, estado) VALUES (?, ?, 'espera')
             ");
             $stmtInsert->execute(array($codigo, $especialidadId));
+            $nuevoId = (int)$pdo->lastInsertId();
+
+            $pdo->commit();
+            $enTransaccion = false;
 
             responder(201, array(
                 'ok' => true,
                 'turno' => array(
-                    'id' => (int)$pdo->lastInsertId(),
+                    'id' => $nuevoId,
                     'codigo' => $codigo,
                     'especialidad' => $esp['nombre'],
                     'turnos_delante' => $turnosDelante,
@@ -121,7 +135,7 @@ try {
             ));
         }
 
-        // B) RECEPCIÓN: Llamar siguiente turno
+        // B) RECEPCIÓN: Llamar siguiente con bloqueo pesimista (elimina condición de carrera)
         if ($accion === 'llamar_siguiente') {
             $consultorioId = isset($input['consultorio_id']) ? (int)$input['consultorio_id'] : 0;
             $recepcionistaId = isset($input['recepcionista_id']) ? (int)$input['recepcionista_id'] : 0;
@@ -138,16 +152,23 @@ try {
                 responder(404, array('ok' => false, 'error' => 'Consultorio no encontrado.'));
             }
 
+            $pdo->beginTransaction();
+            $enTransaccion = true;
+
+            // FOR UPDATE bloquea exclusivamente la fila seleccionada hasta que termine el COMMIT
             $stmtNext = $pdo->prepare("
                 SELECT id, codigo FROM turnos
-                WHERE especialidad_id = ? AND estado = 'espera'
+                WHERE estado = 'espera' AND especialidad_id = ?
                 ORDER BY creado_en ASC, id ASC
                 LIMIT 1
+                FOR UPDATE
             ");
             $stmtNext->execute(array($consultorio['especialidad_id']));
             $siguiente = $stmtNext->fetch();
 
             if (!$siguiente) {
+                $pdo->rollBack();
+                $enTransaccion = false;
                 responder(200, array('ok' => true, 'mensaje' => 'No hay pacientes en espera.', 'turno' => null));
             }
 
@@ -157,9 +178,12 @@ try {
                     consultorio_id = ?,
                     recepcionista_id = ?,
                     llamado_en = NOW()
-                WHERE id = ?
+                WHERE id = ? AND estado = 'espera'
             ");
             $stmtUpdate->execute(array($consultorioId, $recepcionistaId, $siguiente['id']));
+
+            $pdo->commit();
+            $enTransaccion = false;
 
             responder(200, array(
                 'ok' => true,
@@ -192,5 +216,8 @@ try {
 
     responder(405, array('ok' => false, 'error' => 'Método HTTP no permitido.'));
 } catch (Exception $e) {
+    if ($enTransaccion && $pdo) {
+        $pdo->rollBack();
+    }
     responder(500, array('ok' => false, 'error' => 'Error interno del servidor.'));
 }
